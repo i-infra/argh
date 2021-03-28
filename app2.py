@@ -17,7 +17,7 @@ if not hasattr(sys.stderr, 'isatty'):
     # In GAE it's not defined and we must monkeypatch
     sys.stderr.isatty = lambda: False
 
-from json import dumps
+from json import dumps, loads
 from flask import make_response
 
 def jsonify(arg, status=200, indent=4, sort_keys=True, **kwargs):
@@ -189,6 +189,12 @@ def version():
         'youtube-dl-api-server': 0.1,
     }
     return jsonify(result)
+
+@route_api('current_ip')
+@set_access_control
+def current_ip():
+    res = urllib.request.urlopen('https://ipinfo.io').read().decode()
+    return jsonify(loads(res))
 
 
 app = Flask("__main__")
