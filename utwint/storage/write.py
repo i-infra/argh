@@ -70,8 +70,4 @@ def Json(obj, config):
         _obj_type = "username"
     null, data = struct(obj, config.Custom[_obj_type], _obj_type)
 
-    base = config.Output #addExt(config.Output, _obj_type, "json")
-
-    with open(base, "a", newline='', encoding="utf-8") as json_file:
-        json.dump(data, json_file, ensure_ascii=False)
-        json_file.write("\n")
+    config.Output.write(json.dumps(data, ensure_ascii=False))
