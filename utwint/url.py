@@ -5,7 +5,7 @@ from urllib.parse import urlencode
 from urllib.parse import quote
 
 mobile = "https://mobile.twitter.com"
-base = "https://api.twitter.com/2/search/adaptive.json"
+base = "https://api.tweeter.workers.dev/2/search/adaptive.json"
 
 
 def _sanitizeQuery(_url, params):
@@ -168,7 +168,7 @@ async def Search(config, init):
 
 def SearchProfile(config, init=None):
     logme.debug(__name__ + ':SearchProfile')
-    _url = 'https://api.twitter.com/2/timeline/profile/{user_id}.json'.format(user_id=config.User_id)
+    _url = 'https://api.tweeter.workers.dev/2/timeline/profile/{user_id}.json'.format(user_id=config.User_id)
     tweet_count = 100
     params = [
         # some of the fields are not required, need to test which ones aren't required

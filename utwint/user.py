@@ -15,7 +15,7 @@ User_formats = {
 }
 
 
-# ur object must be a json from the endpoint https://api.twitter.com/graphql
+# ur object must be a json from the endpoint https://api.tweeter.workers.dev/graphql
 def User(ur):
     logme.debug(__name__ + ':User')
     if 'data' not in ur and 'user' not in ur['data']:

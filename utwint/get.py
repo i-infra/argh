@@ -144,7 +144,7 @@ async def RandomUserAgent(wa=None):
 async def Username(_id, bearer_token, guest_token):
     logme.debug(__name__ + ':Username')
     _dct = {'userId': _id, 'withHighlightedLabel': False}
-    _url = "https://api.twitter.com/graphql/B9FuNQVmyx32rdbIPEZKag/UserByRestId?variables={}".format(dict_to_url(_dct))
+    _url = "https://api.tweeter.workers.dev/graphql/B9FuNQVmyx32rdbIPEZKag/UserByRestId?variables={}".format(dict_to_url(_dct))
     _headers = {
         'authorization': bearer_token,
         'x-guest-token': guest_token,
@@ -169,7 +169,7 @@ async def Tweet(url, config, conn):
 async def User(username, config, conn, user_id=False):
     logme.debug(__name__ + ':User')
     _dct = {'screen_name': username, 'withHighlightedLabel': False}
-    _url = 'https://api.twitter.com/graphql/jMaTS-_Ea8vh9rpKggJbCQ/UserByScreenName?variables={}'\
+    _url = 'https://api.tweeter.workers.dev/graphql/jMaTS-_Ea8vh9rpKggJbCQ/UserByScreenName?variables={}'\
         .format(dict_to_url(_dct))
     _headers = {
         'authorization': config.Bearer_token,
