@@ -5,14 +5,18 @@ import sys
 import os
 import urllib.request
 
-from flask import Flask, Blueprint, current_app, request, redirect, abort
+from flask import Flask, Blueprint, current_app, request, redirect, abort, Response
 import youtube_dl
+import utwee
+
 from youtube_dl.version import __version__ as youtube_dl_version
+
 
 from flask import Flask, render_template
 
 service = os.environ.get('K_SERVICE', 'Unknown service')
 revision = os.environ.get('K_REVISION', 'Unknown revision')
+
 
 if not hasattr(sys.stderr, 'isatty'):
     # In GAE it's not defined and we must monkeypatch
@@ -188,6 +192,7 @@ def version():
     result = {
         'youtube-dl': youtube_dl_version,
         'youtube-dl-api-server': 0.1,
+        'twint': utwee.twint_version,
     }
     return jsonify(result)
 
@@ -197,6 +202,17 @@ def current_ip():
     res = urllib.request.urlopen('https://ipinfo.io').read().decode()
     return jsonify(loads(res))
 
+@route_api('headers')
+@set_access_control
+def headers():
+    return jsonify(dict(request.headers))
+
+@route_api('tweep')
+@set_access_control
+def tweep():
+    username = request.args["username"]
+    limit = int(request.args["limit"] or 100)
+    return Response(utwee.generate_response(username, limit), mimetype='text/plain')
 
 app = Flask("__main__")
 app.register_blueprint(api)
