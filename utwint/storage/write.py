@@ -70,4 +70,4 @@ def Json(obj, config):
         _obj_type = "username"
     null, data = struct(obj, config.Custom[_obj_type], _obj_type)
 
-    config.Output.write(json.dumps(data, ensure_ascii=False))
+    config.Output.write(json.dumps(data, ensure_ascii=False, indent=2))
