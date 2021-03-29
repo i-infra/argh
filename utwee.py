@@ -27,7 +27,7 @@ class StreamWriter(object):
 
 
 def generate_response(user_name, limit=100):
-    sw = StreamWriter(limit=100)
+    sw = StreamWriter(limit)
     def task():
         tc = twint.Config()
         tc.All=user_name
