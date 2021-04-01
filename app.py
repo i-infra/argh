@@ -4,10 +4,12 @@ import traceback
 import sys
 import os
 import urllib.request
+import calendar
 
 from flask import Flask, Blueprint, current_app, request, redirect, abort, Response
 import youtube_dl
 import utwee
+import arrow
 
 from youtube_dl.version import __version__ as youtube_dl_version
 
@@ -22,12 +24,12 @@ if not hasattr(sys.stderr, "isatty"):
     # In GAE it's not defined and we must monkeypatch
     sys.stderr.isatty = lambda: False
 
-from json import dumps, loads
+import json
 from flask import make_response
 
 
 def jsonify(arg, status=200, indent=4, sort_keys=True, **kwargs):
-    response = make_response(dumps(dict(arg), indent=indent, sort_keys=sort_keys))
+    response = make_response(json.dumps(dict(arg), indent=indent, sort_keys=sort_keys))
     response.headers["Content-Type"] = "text/plain; charset=utf-8"
     response.headers["mimetype"] = "text/plain"
     response.status_code = status
@@ -196,7 +198,7 @@ def list_extractors():
 def version():
     result = {
         "youtube-dl": youtube_dl_version,
-        "youtube-dl-api-server": 0.1,
+        "argh": 0.1,
         "twint": utwee.twint_version,
     }
     return jsonify(result)
@@ -206,7 +208,7 @@ def version():
 @set_access_control
 def current_ip():
     res = urllib.request.urlopen("https://ipinfo.io").read().decode()
-    return jsonify(loads(res))
+    return jsonify(json.loads(res))
 
 
 @route_api("headers")
@@ -221,6 +223,41 @@ def tweep():
     username = request.args["username"]
     limit = int(request.args["limit"] or 100)
     return Response(utwee.generate_response(username, limit), mimetype="text/plain")
+
+
+@route_api("tw_replies")
+@set_access_control
+def tw_replies():
+    url = request.args["url"]
+    if not (url and url.count("/") in (3, 5)):
+        return Response("Try again with ?url=https://twitter.com/account/status/...")
+    tweet_id = url.rstrip("/").split("/")[-1]
+    username = url.rstrip("/").split("/")[-3]
+    # very lame way of getting the date of the tweet with a single (albeit synchronous) request
+    oembed_query = "https://publish.twitter.com/oembed?url=" + url
+    embed_resp = json.loads(urllib.request.urlopen(oembed_query).read())
+    html = embed_resp.get("html") or ""
+    if not html:
+        return Response(f"Tweet {url} could not be found for embed.")
+    date = html.split('ref_src=twsrc%5Etfw">')[-1].split("</a>")[0]
+    (month, day, year) = date.split(" ")
+    month_index = list(calendar.month_name).index(month)
+    day = day.strip(",")
+    day, year = int(day), int(year)
+    publish_date = arrow.Arrow(month=month_index, day=day, year=year)
+    Since = publish_date.shift(days=-1).format("YYYY-MM-DD")
+    Until = publish_date.shift(days=7).format("YYYY-MM-DD")
+    responses = [
+        response
+        for response in reversed(
+            [
+                {k: v for k, v in json.loads(r).items() if v}
+                for r in utwee.generate_response(username, limit=250)
+            ]
+        )
+        if response.get("conversation_id") == tweet_id
+    ]
+    return Response(json.dumps(responses, indent=2), mimetype="text/plain")
 
 
 app = Flask("__main__")
