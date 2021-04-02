@@ -225,16 +225,41 @@ def tweep():
     return Response(utwee.generate_response(username, limit), mimetype="text/plain")
 
 
+def get_tweet_metadata_secret_api_bad_tech(status_id):
+    # this is interesting, but a kinda terrible way of doing it...
+    syndication_query = "https://cdn.syndication.twimg.com/tweet?lang=en&id=" + str(
+        status_id
+    )
+    synd_resp = json.loads(urllib.request.urlopen(syndication_query).read())
+    return synd_resp
+
+
+@route_api("tw_metadata")
+@set_access_control
+def tw_metadata():
+    status_id = request.args.get("id")
+    if not status_id:
+        return Response("Try again with ?id=<status number>")
+    # if a URL was passed, grab the last fragment and pretend it's a status ID
+    if "/" in status_id:
+        status_id = status_id.strip("/").split("/")[-1]
+    return jsonify(get_tweet_metadata_secret_api_bad_tech(status_id))
+
+
 @route_api("tw_replies")
 @set_access_control
 def tw_replies():
-    url = request.args["url"]
+    url = request.args.get("url")
+    # allow &all=true to disable the extra filter step
+    get_all = request.args.get("all")
     if not (url and url.count("/") in (3, 5)):
         return Response("Try again with ?url=https://twitter.com/account/status/...")
     tweet_id = url.rstrip("/").split("/")[-1]
     username = url.rstrip("/").split("/")[-3]
     # very lame way of getting the date of the tweet with a single (albeit synchronous) request
-    oembed_query = "https://publish.twitter.com/oembed?url=" + url
+    oembed_query = (
+        "https://publish.twitter.com/oembed?dnt=true&omit_script=true&url=" + url
+    )
     embed_resp = json.loads(urllib.request.urlopen(oembed_query).read())
     html = embed_resp.get("html") or ""
     if not html:
@@ -244,9 +269,11 @@ def tw_replies():
     month_index = list(calendar.month_name).index(month)
     day = day.strip(",")
     day, year = int(day), int(year)
+    # okay, now we have three integers - pass tem into an Arrow object, and use arrow's calculator to do the timeshifts.
     publish_date = arrow.Arrow(month=month_index, day=day, year=year)
     Since = publish_date.shift(days=-1).format("YYYY-MM-DD")
     Until = publish_date.shift(days=7).format("YYYY-MM-DD")
+    # uh just roll with it, okay
     responses = [
         response
         for response in reversed(
@@ -255,7 +282,13 @@ def tw_replies():
                 for r in utwee.generate_response(username, limit=250)
             ]
         )
-        if response.get("conversation_id") == tweet_id
+        if get_all
+        or (
+            get_tweet_metadata_secret_api_bad_tech(response.get("id")).get(
+                "in_reply_to_status_id_str"
+            )
+            == tweet_id
+        )
     ]
     return Response(json.dumps(responses, indent=2), mimetype="text/plain")
 
