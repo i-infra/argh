@@ -289,20 +289,27 @@ def tw_replies():
     day, year = int(day), int(year)
     # okay, now we have three integers - pass tem into an Arrow object, and use arrow's calculator to do the timeshifts.
     publish_date = arrow.Arrow(month=month_index, day=day, year=year)
-    Since = publish_date.shift(days=-1).format("YYYY-MM-DD")
-    Until = publish_date.shift(days=7).format("YYYY-MM-DD")
+    # instead of a week being 7 days, make it 8 days, bc I don't wanna think about timezones
+    since = publish_date.shift(days=-1).format("YYYY-MM-DD")
+    until = publish_date.shift(days=7).format("YYYY-MM-DD")
     # uh just roll with it, okay
     responses = [
         response
         for response in reversed(
             [
-                {k: v for k, v in json.loads(r).items() if v}
-                for r in utwee.generate_response(username, limit=250)
+                {
+                    k: v for k, v in json.loads(r).items() if v
+                }  # just makes things shorter
+                for r in utwee.generate_response(
+                    username, limit=250, since=since, until=until
+                )  # get 250 responses starting the day before the referenced tweet, ending 8 days after
             ]
         )
-        if (response.get("conversation_id") == tweet_id)
+        if (
+            response.get("conversation_id") == tweet_id
+        )  # make sure it's part of the conversation
         and (
-            get_all
+            get_all  # drop out if all=true
             or (
                 get_tweet_metadata_secret_api_bad_tech(response.get("id")).get(
                     "in_reply_to_status_id_str"
