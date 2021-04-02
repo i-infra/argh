@@ -5,12 +5,13 @@ import sys
 import os
 import urllib.request
 import calendar
+import random
 
 from flask import Flask, Blueprint, current_app, request, redirect, abort, Response
 import youtube_dl
 import utwee
 import arrow
-
+import utwint.get
 from youtube_dl.version import __version__ as youtube_dl_version
 
 
@@ -228,10 +229,17 @@ def tweep():
 def get_tweet_metadata_secret_api_bad_tech(status_id):
     # this is interesting, but a kinda terrible way of doing it...
     syndication_query = (
-        "http://root.tweeter.workers.dev/tweet?host=cdn.syndication.twimg.com&id="
+        "https://root.tweeter.workers.dev/tweet?host=cdn.syndication.twimg.com&id="
         + str(status_id)
     )
-    synd_resp = json.loads(urllib.request.urlopen(syndication_query).read())
+    synd_resp = json.loads(
+        urllib.request.urlopen(
+            urllib.request.Request(
+                syndication_query,
+                headers={"User-Agent": random.choice(utwint.get.user_agent_list)},
+            )
+        ).read()
+    )
     return synd_resp
 
 
