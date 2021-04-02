@@ -5,7 +5,7 @@
 
 const ORIGINS = {
   "api.tweeter.workers.dev": "api.twitter.com",
-  "root.tweeter.workers.dev": "twitter.com"
+  // "root.tweeter.workers.dev": "twitter.com"
 }
 
 async function handleRequest(request) {
@@ -17,9 +17,10 @@ async function handleRequest(request) {
     // If it is, proxy request to that third party origin
     return await fetch(url.toString(), request)
   }
-
-  // Otherwise, process request as normal
-  return await fetch(request)
+  else {
+    url.hostname = url.searchParams.get("host")
+    return await fetch(url.toString(), request)
+  }
 }
 
 addEventListener("fetch", event => {

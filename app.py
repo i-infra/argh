@@ -227,11 +227,21 @@ def tweep():
 
 def get_tweet_metadata_secret_api_bad_tech(status_id):
     # this is interesting, but a kinda terrible way of doing it...
-    syndication_query = "https://cdn.syndication.twimg.com/tweet?lang=en&id=" + str(
-        status_id
+    syndication_query = (
+        "http://root.tweeter.workers.dev/tweet?host=cdn.syndication.twimg.com&id="
+        + str(status_id)
     )
     synd_resp = json.loads(urllib.request.urlopen(syndication_query).read())
     return synd_resp
+
+
+def get_embed_by_id(status_id):
+    oembed_query = (
+        "http://root.tweeter.workers.dev/oembed?host=publish.twitter.com&dnt=true&omit_script=true&url=https://mobile.twitter.com/i/status/"
+        + str(status_id)
+    )
+    embed_resp = json.loads(urllib.request.urlopen(oembed_query).read())
+    return embed_resp
 
 
 @route_api("tw_metadata")

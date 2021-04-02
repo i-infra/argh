@@ -22,7 +22,7 @@ class Token:
         self.config = config
         self._retries = 5
         self._timeout = 10
-        self.url = 'https://root.tweeter.workers.dev'
+        self.url = 'https://root.tweeter.workers.dev/?host=twitter.com'
 
     def _request(self):
         for attempt in range(self._retries + 1):
