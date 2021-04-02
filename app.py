@@ -300,12 +300,15 @@ def tw_replies():
                 for r in utwee.generate_response(username, limit=250)
             ]
         )
-        if get_all
-        or (
-            get_tweet_metadata_secret_api_bad_tech(response.get("id")).get(
-                "in_reply_to_status_id_str"
+        if (response.get("conversation_id") == tweet_id)
+        and (
+            get_all
+            or (
+                get_tweet_metadata_secret_api_bad_tech(response.get("id")).get(
+                    "in_reply_to_status_id_str"
+                )
+                == tweet_id
             )
-            == tweet_id
         )
     ]
     return Response(json.dumps(responses, indent=2), mimetype="text/plain")
