@@ -1,24 +1,65 @@
+import calendar
 import functools
 import logging
-import traceback
-import sys
 import os
+import sys
+import traceback
 import urllib.request
-import calendar
-import random
 
-from flask import Flask, Blueprint, current_app, request, redirect, abort, Response
-import youtube_dl
-import utwee
 import arrow
-import utwint.get
+import youtube_dl
+from flask import Flask, Response, current_app, redirect, request
 from youtube_dl.version import __version__ as youtube_dl_version
 
-
-from flask import Flask, render_template
+import utwee
+import utwint.get
 
 service = os.environ.get("K_SERVICE", "Unknown service")
 revision = os.environ.get("K_REVISION", "Unknown revision")
+
+
+from random import choice, random
+from time import sleep, time
+
+from decorator import decorator
+from flask_restx import Api, Resource, fields, reqparse
+
+app = Flask("__main__")
+app.config.SWAGGER_UI_DOC_EXPANSION = "list"
+api = Api(
+    app,
+    title="ARGH",
+    description="Augmented Reality Gaming Helper",
+    version="0.1",
+)
+
+
+def memoize_with_expiry(expiry_time=0, cache={}):
+    def _memoize_with_expiry(func, *args):
+        key = args
+        result = None
+        if key in cache:
+            result, timestamp = cache[key]
+            # Check the age.
+            age = time() - timestamp
+            if not expiry_time or age < expiry_time:
+                return result
+        # this is actually a function I wrote / hacked together a very long time ago
+        # this comment was here, I didn't even know I was getting retry for free, but lol
+        # dialing it back to avoid long hangs
+        # > if func breaks - looking at you, then try it again until shit works
+        for i in range(3):
+            try:
+                result = func(*args)
+                break
+            except Exception as e:
+                sleep(1 + random() * i)
+                pass
+        if result:
+            cache[key] = (result, time())
+        return result
+
+    return decorator(_memoize_with_expiry)
 
 
 if not hasattr(sys.stderr, "isatty"):
@@ -26,6 +67,7 @@ if not hasattr(sys.stderr, "isatty"):
     sys.stderr.isatty = lambda: False
 
 import json
+
 from flask import make_response
 
 
@@ -73,13 +115,6 @@ def flatten_result(result):
     return videos
 
 
-api = Blueprint("api", __name__)
-
-
-def route_api(subpath, *args, **kargs):
-    return api.route("/api/" + subpath, *args, **kargs)
-
-
 def set_access_control(f):
     @functools.wraps(f)
     def wrapper(*args, **kargs):
@@ -113,14 +148,6 @@ def handle_wrong_parameter(error):
     return result
 
 
-@api.before_request
-def block_on_user_agent():
-    user_agent = request.user_agent.string
-    forbidden_uas = current_app.config.get("FORBIDDEN_USER_AGENTS", [])
-    if user_agent in forbidden_uas:
-        abort(429)
-
-
 def query_bool(value, name, default=None):
     if value is None:
         return default
@@ -149,83 +176,107 @@ ALLOWED_EXTRA_PARAMS = {
 }
 
 
-def get_result():
-    url = request.args["url"]
-    extra_params = {}
-    for k, v in request.args.items():
-        if k in ALLOWED_EXTRA_PARAMS:
-            convertf = ALLOWED_EXTRA_PARAMS[k]
-            if convertf == bool:
-                convertf = lambda x: query_bool(x, k)
-            elif convertf == list:
-                convertf = lambda x: x.split(",")
-            extra_params[k] = convertf(v)
-    return get_videos(url, extra_params)
+video_parser = reqparse.RequestParser()
+video_parser.add_argument("url", type=str, help="URL to access.", required=True)
+[
+    video_parser.add_argument(k, type=v, required=False)
+    for (k, v) in ALLOWED_EXTRA_PARAMS.items()
+]
+
+url_parser = reqparse.RequestParser()
+url_parser.add_argument(
+    "url", type=str, help="URL from which to display information", required=True
+)
 
 
-@route_api("info")
-@set_access_control
-def info():
-    url = request.args["url"]
-    result = get_result()
-    key = "info"
-    if query_bool(request.args.get("flatten"), "flatten", False):
+@api.route("/mm/info")
+class Info(Resource):
+    @api.expect(video_parser)
+    def get(self):
+        args = video_parser.parse_args()
+        result = get_videos(args.get("url"), args)
+        if args.get("flatten"):
+            result = flatten_result(result)
+        return jsonify(result)
+
+
+@api.route("/mm/play")
+class Play(Resource):
+    @api.expect(video_parser)
+    def get(self):
+        args = video_parser.parse_args()
+        result = get_videos(args.get("url"), args)
         result = flatten_result(result)
-        key = "videos"
-    return jsonify(result)
+        return redirect(result[0]["url"])
 
 
-@route_api("play")
-def play():
-    result = flatten_result(get_result())
-    return redirect(result[0]["url"])
+@api.route("/mm/extractors")
+class Extractors(Resource):
+    def get(self):
+        ie_list = [
+            {
+                "name": ie.IE_NAME,
+                "working": ie.working(),
+            }
+            for ie in youtube_dl.gen_extractors()
+        ]
+        return jsonify({"extractors": ie_list})
 
 
-@route_api("extractors")
-@set_access_control
-def list_extractors():
-    ie_list = [
-        {
-            "name": ie.IE_NAME,
-            "working": ie.working(),
+@api.route("/version")
+class Version(Resource):
+    def get(self):
+        result = {
+            "youtube-dl": youtube_dl_version,
+            "argh": 0.1,
+            "twint": utwee.twint_version,
         }
-        for ie in youtube_dl.gen_extractors()
-    ]
-    return jsonify({"extractors": ie_list})
+        return jsonify(result)
 
 
-@route_api("version")
-@set_access_control
-def version():
-    result = {
-        "youtube-dl": youtube_dl_version,
-        "argh": 0.1,
-        "twint": utwee.twint_version,
-    }
-    return jsonify(result)
+@api.route("/debug/get", doc=False)
+class Get(Resource):
+    @api.expect(url_parser)
+    def get(self):
+        args = url_parser.parse_args()
+        res = urllib.request.urlopen(args.get("url")).read().decode()
+        return Response(res, "text/html")
 
 
-@route_api("current_ip")
-@set_access_control
-def current_ip():
-    res = urllib.request.urlopen("https://ipinfo.io").read().decode()
-    return jsonify(json.loads(res))
+@api.route("/debug/headers", doc=False)
+class Headers(Resource):
+    def get(self):
+        return jsonify(dict(self.headers))
 
 
-@route_api("headers")
-@set_access_control
-def headers():
-    return jsonify(dict(request.headers))
+tweep_parser = reqparse.RequestParser()
+
+tweep_parser.add_argument(
+    "username",
+    type=str,
+    help="Username whose timeline should be displayed.",
+    required=True,
+)
+tweep_parser.add_argument(
+    "limit", type=int, help="Number of tweets to be displayed.", required=False
+)
 
 
-@route_api("tweep")
-@set_access_control
-def tweep():
-    username = request.args["username"]
-    limit = int(request.args["limit"] or 100)
-    return Response(utwee.generate_response(username, limit), mimetype="text/plain")
+@api.route("/tw/eep")
+class Tweep(Resource):
+    @api.expect(tweep_parser)
+    def get(self):
+        args = tweep_parser.parse_args()
+        return Response(
+            utwee.generate_response(args.get("username", args.get("limit") or 100)),
+            mimetype="text/plain",
+        )
 
 
+metadata_cache = {}
+
+
+@memoize_with_expiry(expiry_time=120, cache=metadata_cache)
 def get_tweet_metadata_secret_api_bad_tech(status_id):
     # this is interesting, but a kinda terrible way of doing it...
     syndication_query = (
@@ -236,13 +287,17 @@ def get_tweet_metadata_secret_api_bad_tech(status_id):
         urllib.request.urlopen(
             urllib.request.Request(
                 syndication_query,
-                headers={"User-Agent": random.choice(utwint.get.user_agent_list)},
+                headers={"User-Agent": choice(utwint.get.user_agent_list)},
             )
         ).read()
     )
     return synd_resp
 
 
+embed_cache = {}
+
+
+@memoize_with_expiry(expiry_time=120, cache=embed_cache)
 def get_embed_by_id(status_id):
     oembed_query = (
         "http://root.tweeter.workers.dev/oembed?host=publish.twitter.com&dnt=true&omit_script=true&url=https://mobile.twitter.com/i/status/"
@@ -252,77 +307,92 @@ def get_embed_by_id(status_id):
     return embed_resp
 
 
-@route_api("tw_metadata")
-@set_access_control
-def tw_metadata():
-    status_id = request.args.get("id")
-    if not status_id:
-        return Response("Try again with ?id=<status number>")
-    # if a URL was passed, grab the last fragment and pretend it's a status ID
-    if "/" in status_id:
-        status_id = status_id.strip("/").split("/")[-1]
-    return jsonify(get_tweet_metadata_secret_api_bad_tech(status_id))
+metadata_parser = reqparse.RequestParser()
+
+metadata_parser.add_argument(
+    "id", type=str, help="Tweet ID for which to display metadata.", required=True
+)
 
 
-@route_api("tw_replies")
-@set_access_control
-def tw_replies():
-    url = request.args.get("url")
-    # allow &all=true to disable the extra filter step
-    get_all = request.args.get("all")
-    if not (url and url.count("/") in (3, 5)):
-        return Response("Try again with ?url=https://twitter.com/account/status/...")
-    tweet_id = url.rstrip("/").split("/")[-1]
-    username = url.rstrip("/").split("/")[-3]
-    # very lame way of getting the date of the tweet with a single (albeit synchronous) request
-    oembed_query = (
-        "https://publish.twitter.com/oembed?dnt=true&omit_script=true&url=" + url
-    )
-    embed_resp = json.loads(urllib.request.urlopen(oembed_query).read())
-    html = embed_resp.get("html") or ""
-    if not html:
-        return Response(f"Tweet {url} could not be found for embed.")
-    date = html.split('ref_src=twsrc%5Etfw">')[-1].split("</a>")[0]
-    (month, day, year) = date.split(" ")
-    month_index = list(calendar.month_name).index(month)
-    day = day.strip(",")
-    day, year = int(day), int(year)
-    # okay, now we have three integers - pass tem into an Arrow object, and use arrow's calculator to do the timeshifts.
-    publish_date = arrow.Arrow(month=month_index, day=day, year=year)
-    # instead of a week being 7 days, make it 8 days, bc I don't wanna think about timezones
-    since = publish_date.shift(days=-1).format("YYYY-MM-DD")
-    until = publish_date.shift(days=7).format("YYYY-MM-DD")
-    # uh just roll with it, okay
-    responses = [
-        response
-        for response in reversed(
-            [
-                {
-                    k: v for k, v in json.loads(r).items() if v
-                }  # just makes things shorter
-                for r in utwee.generate_response(
-                    username, limit=250, since=since, until=until
-                )  # get 250 responses starting the day before the referenced tweet, ending 8 days after
-            ]
-        )
-        if (
-            response.get("conversation_id") == tweet_id
-        )  # make sure it's part of the conversation
-        and (
-            get_all  # drop out if all=true
-            or (
-                get_tweet_metadata_secret_api_bad_tech(response.get("id")).get(
-                    "in_reply_to_status_id_str"
-                )
-                == tweet_id
+@api.route("/tw/metadata")
+class TwMetadata(Resource):
+    @api.expect(metadata_parser)
+    def get(self):
+        args = metadata_parser.parse_args()
+        status_id = args.get("id")
+        # if a URL was passed, grab the last fragment and pretend it's a status ID
+        if "/" in status_id:
+            status_id = status_id.strip("/").split("/")[-1]
+        return jsonify(get_tweet_metadata_secret_api_bad_tech(status_id))
+
+
+twreplies_parser = reqparse.RequestParser()
+twreplies_parser.add_argument(
+    "url", type=str, help="Tweet URL from which to display replies.", required=True
+)
+twreplies_parser.add_argument(
+    "all", type=bool, help="Display all replies? (Default: just top replies)"
+)
+
+
+@api.route("/tw/replies")
+class TwReplies(Resource):
+    @api.expect(twreplies_parser)
+    def get(self):
+        args = twreplies_parser.parse_args()
+        url, get_all = args.get("url"), args.get("all")
+        if not (url and url.count("/") in (3, 5)):
+            return Response(
+                "Try again with ?url=https://twitter.com/account/status/..."
             )
+        tweet_id = url.rstrip("/").split("/")[-1]
+        username = url.rstrip("/").split("/")[-3]
+        # very lame way of getting the date of the tweet with a single (albeit synchronous) request
+        oembed_query = (
+            "https://publish.twitter.com/oembed?dnt=true&omit_script=true&url=" + url
         )
-    ]
-    return Response(json.dumps(responses, indent=2), mimetype="text/plain")
+        embed_resp = json.loads(urllib.request.urlopen(oembed_query).read())
+        html = embed_resp.get("html") or ""
+        if not html:
+            return Response(f"Tweet {url} could not be found for embed.")
+        date = html.split('ref_src=twsrc%5Etfw">')[-1].split("</a>")[0]
+        (month, day, year) = date.split(" ")
+        month_index = list(calendar.month_name).index(month)
+        day = day.strip(",")
+        day, year = int(day), int(year)
+        # okay, now we have three integers - pass tem into an Arrow object, and use arrow's calculator to do the timeshifts.
+        publish_date = arrow.Arrow(month=month_index, day=day, year=year)
+        # instead of a week being 7 days, make it 8 days, bc I don't wanna think about timezones
+        since = publish_date.shift(days=-1).format("YYYY-MM-DD")
+        until = publish_date.shift(days=7).format("YYYY-MM-DD")
+        # uh just roll with it, okay
+        responses = [
+            response
+            for response in reversed(
+                [
+                    {
+                        k: v for k, v in json.loads(r).items() if v
+                    }  # just makes things shorter
+                    for r in utwee.generate_response(
+                        username, limit=250, since=since, until=until
+                    )  # get 250 responses starting the day before the referenced tweet, ending 8 days after
+                ]
+            )
+            if (
+                response.get("conversation_id") == tweet_id
+            )  # make sure it's part of the conversation
+            and (
+                get_all  # drop out if all=true
+                or (
+                    get_tweet_metadata_secret_api_bad_tech(response.get("id")).get(
+                        "in_reply_to_status_id_str"
+                    )
+                    == tweet_id
+                )
+            )
+        ]
+        return Response(json.dumps(responses, indent=2), mimetype="text/plain")
 
-
-app = Flask("__main__")
-app.register_blueprint(api)
 
 if __name__ == "__main__":
     server_port = os.environ.get("PORT", "8080")

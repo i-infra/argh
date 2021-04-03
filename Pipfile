@@ -10,13 +10,15 @@ beautifulsoup4 = "*"
 cchardet = "*"
 dataclasses = "*"
 fake-useragent = "*"
-googletransx = "*"
 youtube-dl = "*"
 flask = "*"
 arrow = "*"
+decorator = "*"
+flask-restx = "*"
 
 [dev-packages]
 black = "*"
+isort = "*"
 
 [requires]
 python_version = "3.8"

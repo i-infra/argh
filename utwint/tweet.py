@@ -2,10 +2,6 @@ from time import strftime, localtime
 from datetime import datetime, timezone
 
 import logging as logme
-from googletransx import Translator
-# ref. 
-# - https://github.com/x0rzkov/py-googletrans#basic-usage
-translator = Translator()
 
 
 class tweet:
@@ -153,14 +149,4 @@ def Tweet(tw, config):
     t.translate = ''
     t.trans_src = ''
     t.trans_dest = ''
-    if config.Translate:
-        try:
-            ts = translator.translate(text=t.tweet, dest=config.TranslateDest)
-            t.translate = ts.text
-            t.trans_src = ts.src
-            t.trans_dest = ts.dest
-        # ref. https://github.com/SuniTheFish/ChainTranslator/blob/master/ChainTranslator/__main__.py#L31
-        except ValueError as e:
-            logme.debug(__name__ + ':Tweet:translator.translate:' + str(e))
-            raise Exception("Invalid destination language: {} / Tweet: {}".format(config.TranslateDest, t.tweet))
     return t
