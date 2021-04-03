@@ -30,7 +30,7 @@ app.config.SWAGGER_UI_DOC_EXPANSION = "list"
 api = Api(
     app,
     title="ARGH",
-    description="Augmented Roleplaying Game Helper",
+    description="Augmented Roleplaying Game Helper - by @infra_naut et al",
     version=argh_version,
 )
 
