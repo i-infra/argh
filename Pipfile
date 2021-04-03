@@ -15,6 +15,7 @@ flask = "*"
 arrow = "*"
 decorator = "*"
 flask-restx = "*"
+requests = "*"
 
 [dev-packages]
 black = "*"
