@@ -14,7 +14,7 @@ decorator==5.0.3
 fake-useragent==0.1.11
 flask-restx==0.3.0
 flask==1.1.2
-idna==3.1
+idna
 itsdangerous==1.1.0
 jinja2==2.11.3
 jsonschema==3.2.0
