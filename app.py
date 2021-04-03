@@ -209,8 +209,8 @@ class Play(Resource):
         """ Play, stream, or save a video or other multimedia file! """
         args = video_parser.parse_args()
         result = get_videos(args.get("url"), args)
-        result = flatten_result(result)
-        return redirect(result[0]["url"])
+        url = result['formats'][-1]['url']
+        return redirect(url)
 
 
 @api.route("/mm/extractors")
