@@ -24,13 +24,14 @@ from time import sleep, time
 from decorator import decorator
 from flask_restx import Api, Resource, fields, reqparse
 
+argh_version = "0.9"
 app = Flask("__main__")
 app.config.SWAGGER_UI_DOC_EXPANSION = "list"
 api = Api(
     app,
     title="ARGH",
-    description="Augmented Reality Gaming Helper",
-    version="0.1",
+    description="Augmented Roleplaying Game Helper",
+    version=argh_version,
 )
 
 
@@ -193,6 +194,7 @@ url_parser.add_argument(
 class Info(Resource):
     @api.expect(video_parser)
     def get(self):
+        """" Get all info about all multimedia files at a given page. """
         args = video_parser.parse_args()
         result = get_videos(args.get("url"), args)
         if args.get("flatten"):
@@ -204,6 +206,7 @@ class Info(Resource):
 class Play(Resource):
     @api.expect(video_parser)
     def get(self):
+        """ Play, stream, or save a video or other multimedia file! """
         args = video_parser.parse_args()
         result = get_videos(args.get("url"), args)
         result = flatten_result(result)
@@ -213,6 +216,7 @@ class Play(Resource):
 @api.route("/mm/extractors")
 class Extractors(Resource):
     def get(self):
+        """ Return the list of supported multimedia extractor types. """
         ie_list = [
             {
                 "name": ie.IE_NAME,
@@ -226,9 +230,10 @@ class Extractors(Resource):
 @api.route("/version")
 class Version(Resource):
     def get(self):
+        """ Get versions for youtube-dl, twint, and ARGH. """
         result = {
             "youtube-dl": youtube_dl_version,
-            "argh": 0.1,
+            "argh": argh_version,
             "twint": utwee.twint_version,
         }
         return jsonify(result)
@@ -262,10 +267,11 @@ tweep_parser.add_argument(
 )
 
 
-@api.route("/tw/eep")
+@api.route("/tw/timeline")
 class Tweep(Resource):
     @api.expect(tweep_parser)
     def get(self):
+        """ Return a user's timeline (100 or specified number of tweets) as JSON for easy manipulation. """
         args = tweep_parser.parse_args()
         return Response(
             utwee.generate_response(args.get("username", args.get("limit") or 100)),
@@ -318,6 +324,7 @@ metadata_parser.add_argument(
 class TwMetadata(Resource):
     @api.expect(metadata_parser)
     def get(self):
+        """ Get all available metadata for a specified tweet (by URL or ID). """
         args = metadata_parser.parse_args()
         status_id = args.get("id")
         # if a URL was passed, grab the last fragment and pretend it's a status ID
@@ -339,6 +346,7 @@ twreplies_parser.add_argument(
 class TwReplies(Resource):
     @api.expect(twreplies_parser)
     def get(self):
+        """ Get all top-level replies (optionally: all) to a particular tweet as JSON. NB: Scrapes only nearest 250 timeline events, or up to one week. """
         args = twreplies_parser.parse_args()
         url, get_all = args.get("url"), args.get("all")
         if not (url and url.count("/") in (3, 5)):
