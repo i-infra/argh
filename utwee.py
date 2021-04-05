@@ -27,12 +27,12 @@ class StreamWriter(object):
         self.write("~")  # indicate EOF
 
 
-def generate_response(user_name, limit=100, since=None, until=None):
+def generate_response(username="jack", limit=100, since=None, until=None):
     sw = StreamWriter(limit)
 
     def task():
         tc = twint.Config()
-        tc.All = user_name
+        tc.All = username
         tc.Store_object = True
         tc.Store_json = True
         tc.Output = sw

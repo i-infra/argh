@@ -209,7 +209,7 @@ class Play(Resource):
         """ Play, stream, or save a video or other multimedia file! """
         args = video_parser.parse_args()
         result = get_videos(args.get("url"), args)
-        url = result['formats'][-1]['url']
+        url = result["formats"][-1]["url"]
         return redirect(url)
 
 
@@ -274,7 +274,7 @@ class Tweep(Resource):
         """ Return a user's timeline (100 or specified number of tweets) as JSON for easy manipulation. """
         args = tweep_parser.parse_args()
         return Response(
-            utwee.generate_response(args.get("username", args.get("limit") or 100)),
+            utwee.generate_response(**dict(args)),
             mimetype="text/plain",
         )
 
