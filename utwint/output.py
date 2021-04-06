@@ -3,7 +3,7 @@ from datetime import datetime
 from . import format, get
 from .tweet import Tweet
 from .user import User
-from .storage import db, write
+from .storage import write
 
 import logging as logme
 
@@ -109,6 +109,9 @@ def _output(obj, output, config, **extra):
         elif config.Store_json:
             write.Json(obj, config)
             logme.debug(__name__ + ':_output:JSON')
+        elif config.Store_dict:
+            write.Dict(obj, config)
+            logme.debug(__name__ + ':_output:JSON')
         else:
             write.Text(output, config.Output)
             logme.debug(__name__ + ':_output:Text')
@@ -123,9 +126,6 @@ async def checkData(tweet, config, conn):
         return
     if datecheck(tweet.datestamp + " " + tweet.timestamp, config):
         output = format.Tweet(config, tweet)
-        if config.Database:
-            logme.debug(__name__ + ':checkData:Database')
-            db.tweets(conn, tweet, config)
         if config.Store_object:
             logme.debug(__name__ + ':checkData:Store_object')
             if hasattr(config.Store_object_tweets_list, 'append'):
@@ -152,25 +152,12 @@ async def Tweets(tweets, config, conn):
             await checkData(tweets, config, conn)
 
 
-async def Users(u, config, conn):
+async def Users(user, config, conn):
     logme.debug(__name__ + ':User')
     global users_list
 
-    user = User(u)
-    output = format.User(config.Format, user)
-
-    if config.Database:
-        logme.debug(__name__ + ':User:Database')
-        db.user(conn, config, user)
-
-    if config.Elasticsearch:
-        logme.debug(__name__ + ':User:Elasticsearch')
-        _save_date = user.join_date
-        _save_time = user.join_time
-        user.join_date = str(datetime.strptime(user.join_date, "%d %b %Y")).split()[0]
-        user.join_time = str(datetime.strptime(user.join_time, "%I:%M %p")).split()[1]
-        user.join_date = _save_date
-        user.join_time = _save_time
+    #user = User(u)
+    #output = format.User(config.Format, user)
 
     if config.Store_object:
         logme.debug(__name__ + ':User:Store_object')
@@ -182,7 +169,7 @@ async def Users(u, config, conn):
         else:
             users_list.append(user)  # twint.user.user
 
-    _output(user, output, config)
+    #_output(user, output, config)
 
 
 async def Username(username, config, conn):
@@ -190,13 +177,6 @@ async def Username(username, config, conn):
     global _follows_object
     global follows_list
     follow_var = config.Following * "following" + config.Followers * "followers"
-
-    if config.Database:
-        logme.debug(__name__ + ':Username:Database')
-        db.follow(conn, config.Username, config.Followers, username)
-
-    if config.Elasticsearch:
-        logme.debug(__name__ + ':Username:Elasticsearch')
 
     if config.Store_object:
         if hasattr(config.Store_object_follow_list, 'append'):

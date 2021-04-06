@@ -12,7 +12,3 @@ def Count(count, config):
             msg += f" from @{config.Username}"
     msg += "."
     print(msg)
-
-def Elastic(elasticsearch):
-    if elasticsearch:
-        print("[+] Indexing to Elasticsearch @ " + str(elasticsearch))

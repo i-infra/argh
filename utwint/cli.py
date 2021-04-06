@@ -88,7 +88,6 @@ def initialize(args):
     c.Near = args.near
     c.Lang = args.lang
     c.Output = args.output
-    c.Elasticsearch = args.elasticsearch
     c.Year = args.year
     c.Since = args.since
     c.Until = args.until
@@ -98,29 +97,22 @@ def initialize(args):
     c.Store_csv = args.csv
     c.Tabs = args.tabs
     c.Store_json = args.json
+    c.Store_dict = False
     c.Show_hashtags = args.hashtags
     c.Show_cashtags = args.cashtags
     c.Limit = args.limit
     c.Count = args.count
     c.Stats = args.stats
-    c.Database = args.database
     c.To = args.to
     c.All = args.all
-    c.Essid = args.essid
     c.Format = args.format
     c.User_full = args.user_full
-    # c.Profile_full = args.profile_full
-    c.Pandas_type = args.pandas_type
-    c.Index_tweets = args.index_tweets
-    c.Index_follow = args.index_follow
-    c.Index_users = args.index_users
     c.Debug = args.debug
     c.Resume = args.resume
     c.Images = args.images
     c.Videos = args.videos
     c.Media = args.media
     c.Replies = args.replies
-    c.Pandas_clean = args.pandas_clean
     c.Proxy_host = args.proxy_host
     c.Proxy_port = args.proxy_port
     c.Proxy_type = args.proxy_type
@@ -159,7 +151,6 @@ def options():
     ap.add_argument("--location", help="Show user's location (Experimental).", action="store_true")
     ap.add_argument("-l", "--lang", help="Search for Tweets in a specific language.")
     ap.add_argument("-o", "--output", help="Save output to a file.")
-    ap.add_argument("-es", "--elasticsearch", help="Index to Elasticsearch.")
     ap.add_argument("--year", help="Filter Tweets before specified year.")
     ap.add_argument("--since", help="Filter Tweets sent since date (Example: \"2017-12-27 20:30:15\" or 2017-12-27).",
                     metavar="DATE")
@@ -180,7 +171,6 @@ def options():
                     action="store_true")
     ap.add_argument("--stats", help="Show number of replies, retweets, and likes.",
                     action="store_true")
-    ap.add_argument("-db", "--database", help="Store Tweets in a sqlite3 database.")
     ap.add_argument("--to", help="Search Tweets to a user.", metavar="USERNAME")
     ap.add_argument("--all", help="Search all Tweets associated with a user.", metavar="USERNAME")
     ap.add_argument("--followers", help="Scrape a person's followers.", action="store_true")
@@ -193,9 +183,6 @@ def options():
     ap.add_argument("--tor-control-password",
                     help="If proxy-host is set to tor, this is the password for the control port",
                     default="my_password")
-    ap.add_argument("--essid",
-                    help="Elasticsearch Session ID, use this to differentiate scraping sessions.",
-                    nargs="?", default="")
     ap.add_argument("--userlist", help="Userlist from list or file.")
     ap.add_argument("--retweets",
                     help="Include user's Retweets (Warning: limited).",
@@ -219,16 +206,6 @@ def options():
                     action="store_true")
     ap.add_argument("--translate-dest", help="Translate tweet to language (ISO2).",
                     default="en")
-    ap.add_argument("--store-pandas", help="Save Tweets in a DataFrame (Pandas) file.")
-    ap.add_argument("--pandas-type",
-                    help="Specify HDF5 or Pickle (HDF5 as default)", nargs="?", default="HDF5")
-    ap.add_argument("-it", "--index-tweets",
-                    help="Custom Elasticsearch Index name for Tweets.", nargs="?", default="twinttweets")
-    ap.add_argument("-if", "--index-follow",
-                    help="Custom Elasticsearch Index name for Follows.",
-                    nargs="?", default="twintgraph")
-    ap.add_argument("-iu", "--index-users", help="Custom Elasticsearch Index name for Users.",
-                    nargs="?", default="twintuser")
     ap.add_argument("--debug",
                     help="Store information in debug logs", action="store_true")
     ap.add_argument("--resume", help="Resume from Tweet ID.", metavar="TWEET_ID")
@@ -237,8 +214,6 @@ def options():
     ap.add_argument("--media",
                     help="Display Tweets with only images or videos.", action="store_true")
     ap.add_argument("--replies", help="Display replies to a subject.", action="store_true")
-    ap.add_argument("-pc", "--pandas-clean",
-                    help="Automatically clean Pandas dataframe at every scrape.")
     ap.add_argument("-cq", "--custom-query", help="Custom search query.")
     ap.add_argument("-pt", "--popular-tweets", help="Scrape popular tweets instead of recent ones.",
                     action="store_true")
@@ -268,16 +243,10 @@ def main():
     args = options()
     check(args)
 
-    if args.pandas_clean:
-        storage.panda.clean()
-
     c = initialize(args)
 
     if args.userlist:
         c.Query = loadUserList(args.userlist, "search")
-
-    if args.pandas_clean:
-        storage.panda.clean()
 
     if args.favorites:
         if args.userlist:

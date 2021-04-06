@@ -71,3 +71,11 @@ def Json(obj, config):
     null, data = struct(obj, config.Custom[_obj_type], _obj_type)
 
     config.Output.write(json.dumps(data, ensure_ascii=False, indent=2))
+
+def Dict(obj, config):
+    _obj_type = obj.__class__.__name__
+    if _obj_type == "str":
+        _obj_type = "username"
+    null, data = struct(obj, config.Custom[_obj_type], _obj_type)
+
+    config.Output.write(data)

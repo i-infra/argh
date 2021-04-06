@@ -1,5 +1,6 @@
 import calendar
 import functools
+import itertools
 import logging
 import os
 import sys
@@ -271,16 +272,86 @@ tweep_parser.add_argument(
 tweep_parser.add_argument(
     "until", type=str, help="End date. (YYYY-MM-DD)", required=False
 )
+tweep_parser.add_argument(
+    "indent",
+    type=int,
+    help="Number of spaces to indent JSON. Default=0, single line.",
+    required=False,
+)
 
 
 @api.route("/tw/timeline")
-class Tweep(Resource):
+class Timeline(Resource):
     @api.expect(tweep_parser)
     def get(self):
         """ Return a user's timeline (100 or specified number of tweets) as JSON for easy manipulation. """
-        args = tweep_parser.parse_args()
+        args = dict(tweep_parser.parse_args())
+        indent = args.pop("indent", None)
+        json_chunks = (
+            json.dumps(user, indent=indent) + ",\n"
+            for user in utwee.run_search(**dict(args), Writer=utwee.StreamWriter)
+        )
+        response_iterators = itertools.chain("[", itertools.chain(json_chunks, "{}]"))
         return Response(
-            utwee.generate_response(**dict(args)),
+            response_iterators,
+            mimetype="text/plain",
+        )
+
+
+usernames_parser = reqparse.RequestParser()
+
+usernames_parser.add_argument(
+    "usernames",
+    type=str,
+    help="Username(s) whose metadata should be displayed. (Comma separated.)",
+    required=True,
+)
+
+usernames_parser.add_argument(
+    "indent",
+    type=int,
+    help="Number of spaces to indent JSON. Default=0, single line.",
+    required=False,
+)
+
+
+@api.route("/tw/users")
+class Users(Resource):
+    @api.expect(usernames_parser)
+    def get(self):
+        """ Return metadata for one or more users. """
+        args = dict(usernames_parser.parse_args())
+        indent = args.pop("indent", None)
+        self.cleanup_index = 0
+
+        def cleanup(user):
+            print(user)
+            self.cleanup_index += 1
+            maybe_errors = user.get("errors", [])
+            if maybe_errors:
+                print(maybe_errors[0].get("message"))
+                user["screen_name"] = args.get("usernames").split(",")[
+                    self.cleanup_index
+                ]
+                user[
+                    "profile_image_url_https"
+                ] = "https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png"
+                return user
+            user = user.get("data").get("user")
+            user.update(user.pop("legacy", {}))
+            user.pop("profile_banner_extensions", None)
+            user.pop("profile_image_extensions", None)
+            user.pop("entities", None)
+            user["profile_image_url_https"] = user["profile_image_url_https"].replace(
+                "normal", "400x400"
+            )
+            return user
+
+        return Response(
+            json.dumps(
+                [cleanup(user) for user in utwee.run_users(**args)],
+                indent=indent,
+            ),
             mimetype="text/plain",
         )
 
@@ -344,7 +415,7 @@ twreplies_parser.add_argument(
     "url", type=str, help="Tweet URL from which to display replies.", required=True
 )
 twreplies_parser.add_argument(
-    "all", type=bool, help="Display all replies? (Default: just top replies)"
+    "all", type=bool, help="Display all replies? (Default: just top-level replies)"
 )
 
 
@@ -384,7 +455,7 @@ class TwReplies(Resource):
                     {
                         k: v for k, v in json.loads(r).items() if v
                     }  # just makes things shorter
-                    for r in utwee.generate_response(
+                    for r in utwee.run_search(
                         username, limit=250, since=since, until=until
                     )  # get 250 responses starting the day before the referenced tweet, ending 8 days after
                 ]

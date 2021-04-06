@@ -4,7 +4,6 @@ from asyncio import get_event_loop, TimeoutError, ensure_future, new_event_loop,
 from . import datelock, feed, get, output, verbose, storage
 from .token import TokenExpiryException
 from . import token
-from .storage import db
 from .feed import NoMoreTweetsException
 
 import logging as logme
@@ -34,7 +33,7 @@ class Twint:
         # USAGE : to get a new guest token simply do `self.token.refresh()`
         self.token = token.Token(config)
         self.token.refresh()
-        self.conn = db.Conn(config.Database)
+        self.conn = ""
         self.d = datelock.Set(self.config.Until, self.config.Since)
 
         if self.config.Store_object:
@@ -300,7 +299,7 @@ class Twint:
                 logme.debug(__name__ + ':Twint:Lookup:user_id')
                 self.config.Username = await get.Username(self.config.User_id, self.config.Bearer_token,
                                                           self.config.Guest_token)
-            await get.User(self.config.Username, self.config, db.Conn(self.config.Database))
+            await get.User(self.config.Username, self.config, "")
 
         except Exception as e:
             logme.exception(__name__ + ':Twint:Lookup:Unexpected exception occurred.')
