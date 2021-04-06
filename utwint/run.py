@@ -12,6 +12,7 @@ import time
 
 bearer = 'Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs' \
          '%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA'
+import random
 
 
 class Twint:
@@ -31,7 +32,7 @@ class Twint:
         self.config.Bearer_token = bearer
         # TODO might have to make some adjustments for it to work with multi-treading
         # USAGE : to get a new guest token simply do `self.token.refresh()`
-        self.token = token.Token(config)
+        self.token = token.Token(config, random.choice(get.user_agent_list))
         self.token.refresh()
         self.conn = ""
         self.d = datelock.Set(self.config.Until, self.config.Since)
