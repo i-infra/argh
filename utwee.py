@@ -28,6 +28,8 @@ class StreamWriter(object):
 
 
 def generate_response(username="jack", limit=100, since=None, until=None):
+    if limit == None:
+        limit = 100
     sw = StreamWriter(limit)
 
     def task():

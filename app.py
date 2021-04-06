@@ -265,6 +265,12 @@ tweep_parser.add_argument(
 tweep_parser.add_argument(
     "limit", type=int, help="Number of tweets to be displayed.", required=False
 )
+tweep_parser.add_argument(
+    "since", type=str, help="Start date. (YYYY-MM-DD)", required=False
+)
+tweep_parser.add_argument(
+    "until", type=str, help="End date. (YYYY-MM-DD)", required=False
+)
 
 
 @api.route("/tw/timeline")
@@ -356,10 +362,7 @@ class TwReplies(Resource):
         tweet_id = url.rstrip("/").split("/")[-1]
         username = url.rstrip("/").split("/")[-3]
         # very lame way of getting the date of the tweet with a single (albeit synchronous) request
-        oembed_query = (
-            "https://publish.twitter.com/oembed?dnt=true&omit_script=true&url=" + url
-        )
-        embed_resp = json.loads(urllib.request.urlopen(oembed_query).read())
+        embed_resp = get_embed_by_id(tweet_id)
         html = embed_resp.get("html") or ""
         if not html:
             return Response(f"Tweet {url} could not be found for embed.")
