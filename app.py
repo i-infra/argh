@@ -245,7 +245,12 @@ class Get(Resource):
     @api.expect(url_parser)
     def get(self):
         args = url_parser.parse_args()
-        res = urllib.request.urlopen(args.get("url")).read().decode()
+        res = urllib.request.urlopen(
+            urllib.request.Request(
+                syndication_query,
+                headers={"User-Agent": choice(utwint.get.user_agent_list)},
+            )
+        ).read().decode()
         return Response(res, "text/html")
 
 
