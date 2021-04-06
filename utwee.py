@@ -91,6 +91,7 @@ def run_users(usernames="jack"):
 
     tw = twint.run.Twint(tc)
     for username in usernames.split(","):
+        tw.token.refresh()
         if username:
             tc.Username = username
             asyncio.get_event_loop().run_until_complete(tw.main())

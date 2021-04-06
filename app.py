@@ -247,7 +247,7 @@ class Get(Resource):
         args = url_parser.parse_args()
         res = urllib.request.urlopen(
             urllib.request.Request(
-                syndication_query,
+                args.get('url'),
                 headers={"User-Agent": choice(utwint.get.user_agent_list)},
             )
         ).read().decode()
