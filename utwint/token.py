@@ -20,7 +20,7 @@ class Token:
         self._session = requests.Session()
         self._session.headers.update({'User-Agent': "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.105 Safari/537.36"})
         self.config = config
-        self._retries = 5
+        self._retries = 10
         self._timeout = 10
         self.url = 'https://root.tweeter.workers.dev?host=mobile.twitter.com'
 
@@ -59,11 +59,13 @@ class Token:
 
     def refresh(self):
         logme.debug('Retrieving guest token')
-        res = self._request()
-        match = re.search(r'\("gt=(\d+);', res.text)
-        if match:
-            logme.debug('Found guest token in HTML')
-            self.config.Guest_token = str(match.group(1))
+        for _ in range(self._retries):
+            res = self._request()
+            match = re.search(r'\("gt=(\d+);', res.text)
+            if match:
+                logme.debug('Found guest token in HTML')
+                self.config.Guest_token = str(match.group(1))
+                return
         else:
             self.config.Guest_token = None
             raise RefreshTokenException('Could not find the Guest token in HTML')

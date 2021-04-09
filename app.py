@@ -245,12 +245,16 @@ class Get(Resource):
     @api.expect(url_parser)
     def get(self):
         args = url_parser.parse_args()
-        res = urllib.request.urlopen(
-            urllib.request.Request(
-                args.get('url'),
-                headers={"User-Agent": choice(utwint.get.user_agent_list)},
+        res = (
+            urllib.request.urlopen(
+                urllib.request.Request(
+                    args.get("url"),
+                    headers={"User-Agent": choice(utwint.get.user_agent_list)},
+                )
             )
-        ).read().decode()
+            .read()
+            .decode()
+        )
         return Response(res, "text/html")
 
 
@@ -318,6 +322,14 @@ usernames_parser.add_argument(
     help="Number of spaces to indent JSON. Default=0, single line.",
     required=False,
 )
+
+
+# users_cache = {}
+
+
+# @memoize_with_expiry(expiry_time=120, cache=users_cache)
+# def get_users(users):
+#    return utwee.run_users(users)
 
 
 @api.route("/tw/users")
@@ -391,7 +403,17 @@ def get_embed_by_id(status_id):
         "http://root.tweeter.workers.dev/oembed?host=publish.twitter.com&dnt=true&omit_script=true&url=https://mobile.twitter.com/i/status/"
         + str(status_id)
     )
-    embed_resp = json.loads(urllib.request.urlopen(oembed_query).read())
+    blob_resp = (
+        urllib.request.urlopen(
+            urllib.request.Request(
+                oembed_query,
+                headers={"User-Agent": choice(utwint.get.user_agent_list)},
+            )
+        )
+        .read()
+        .decode()
+    )
+    embed_resp = json.loads(blob_resp)
     return embed_resp
 
 
@@ -421,6 +443,17 @@ twreplies_parser.add_argument(
 )
 twreplies_parser.add_argument(
     "all", type=bool, help="Display all replies? (Default: just top-level replies)"
+)
+twreplies_parser.add_argument(
+    "just_usernames",
+    type=bool,
+    help="Return just usernames? (Default: just top-level replies)",
+)
+twreplies_parser.add_argument(
+    "indent",
+    type=int,
+    help="Number of spaces to indent JSON. Default=0, single line.",
+    required=False,
 )
 
 
@@ -457,11 +490,13 @@ class TwReplies(Resource):
             response
             for response in reversed(
                 [
-                    {
-                        k: v for k, v in json.loads(r).items() if v
-                    }  # just makes things shorter
+                    {k: v for k, v in r.items() if v}  # just makes things shorter
                     for r in utwee.run_search(
-                        username, limit=250, since=since, until=until
+                        username,
+                        limit=250,
+                        since=since,
+                        until=until,
+                        Writer=utwee.StreamWriter,
                     )  # get 250 responses starting the day before the referenced tweet, ending 8 days after
                 ]
             )
@@ -478,7 +513,11 @@ class TwReplies(Resource):
                 )
             )
         ]
-        return Response(json.dumps(responses, indent=2), mimetype="text/plain")
+        if args.get("just_usernames"):
+            response = "\n".join([response.get("username") for response in responses])
+        else:
+            response = json.dumps(responses, indent=args.get("indent"))
+        return Response(response, mimetype="text/plain")
 
 
 if __name__ == "__main__":

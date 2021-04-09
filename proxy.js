@@ -14,6 +14,8 @@ async function handleRequest(request) {
   if (url.hostname in ORIGINS) {
     const target = ORIGINS[url.hostname]
     url.hostname = target
+    request = new Request(url, request)
+    request.headers.set("Origin", new URL(url).origin)
     // If it is, proxy request to that third party origin
     return await fetch(url.toString(), request)
   }
