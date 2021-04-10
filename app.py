@@ -25,7 +25,7 @@ from time import sleep, time
 from decorator import decorator
 from flask_restx import Api, Resource, fields, reqparse
 
-argh_version = "0.9.2"
+argh_version = "0.9.5"
 app = Flask("__main__")
 app.config.SWAGGER_UI_DOC_EXPANSION = "list"
 api = Api(
