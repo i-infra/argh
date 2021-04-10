@@ -472,7 +472,7 @@ class TwReplies(Resource):
         username = url.rstrip("/").split("/")[-3]
         # very lame way of getting the date of the tweet with a single (albeit synchronous) request
         embed_resp = get_embed_by_id(tweet_id)
-        html = embed_resp.get("html") or ""
+        html = embed_resp.get("html", "")
         if not html:
             return Response(f"Tweet {url} could not be found for embed.")
         date = html.split('ref_src=twsrc%5Etfw">')[-1].split("</a>")[0]
