@@ -31,4 +31,5 @@ soupsieve==2.2.1
 typing-extensions==3.7.4.3
 werkzeug==1.0.1
 yarl==1.6.3
-youtube-dl==2021.4.1
+youtube-dl==2021.6.6
+urllib3==1.26.5
